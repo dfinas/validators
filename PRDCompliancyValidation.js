@@ -10,10 +10,11 @@ var keyNamesWithKeyValues = {
   "envEnabled" : "true"
 };
 var mandatoryKeys = ["regionalZone","allowHTTPStraffic"];
-var unwantedValues = ["root","https://localhost","127.0.0.1"]; 
+var unwantedValues = ["root","https://localhost","127.0.0.1","debug"]; 
 var uniqueValues = ["db.schema"];
 
 var searches = {};
+var searchesUnique = {};
 var allKeysFound = {};
 var keysNotFound = false;
 var errorFound = false;
@@ -42,6 +43,28 @@ function findObjectKeys(mds, searchKey) {
   }
 }
 
+function findSeveralObjectKeys(mds, searchKey) {
+  if (searchesUnique.hasOwnProperty(searchKey) === false) {
+    searchesUnique[searchKey] = 0;
+  }
+  for (var item in mds) {
+    // check if the key has a value or points to an object
+    if  (typeof (mds[item]) === "object") {
+      // if value is an object call recursively the function to search this subset of the object
+      findObjectKeys (mds[item], searchKey);
+    }
+    else{
+      // check if the key equals to the search term
+      if (item === searchKey ) {
+        searchesUnique[searchKey] = searchesUnique[searchKey] + 1;
+        if (searchesUnique[searchKey] > 1) {
+          break;
+        }
+      }
+    }
+  }
+}
+
 function prdSubstring(mds, substring) {
     for (var item in mds) {
         if (typeof (mds[item]) === 'object') {
@@ -57,7 +80,6 @@ function prdSubstring(mds, substring) {
 }
 
 function searchKeys (mds, searchKey, searchValue) {
-
   if (allKeysFound.hasOwnProperty(searchKey) === false) {
     allKeysFound[searchKey] = false;
   }
@@ -80,14 +102,13 @@ function searchKeys (mds, searchKey, searchValue) {
     }
   }
 }
+
+
 // here we call the validation functions with different search terms
 if (mandatoryKeys.length>0) {
   for (var i = 0; i < mandatoryKeys.length; i++  ) {
     findObjectKeys(metadataset, mandatoryKeys[i]);
   }
-}
-else{
-  return false;
 }
 
 if (unwantedValues.length>0) {
@@ -95,10 +116,14 @@ if (unwantedValues.length>0) {
       prdSubstring(metadataset, unwantedValues[i]);
   }
 }
-else {
-  return false;
+ 
+if (uniqueValues.length>0) {
+  for (var i=0; i<uniqueValues.length; i++  ){
+      findSeveralObjectKeys(metadataset, uniqueValues[i]);
+  }
 }
-for (var obj in keyNamesWithKeyValues) {
+ 
+ for (var obj in keyNamesWithKeyValues) {
   searchKeys(metadataset, obj, keyNamesWithKeyValues[obj]);
 }
  
@@ -114,6 +139,10 @@ else if (keysNotFound) {
 }
 for ( var obj in searches) {
   if (!(searches[obj]))
+    return false;
+}
+for ( var obj in searchesUnique) {
+  if ((searchesUnique[obj]) != 1)
     return false;
 }
 for ( var obj in allKeysFound) {
